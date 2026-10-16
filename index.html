@@ -1,0 +1,1941 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Life Tracker</title>
+<style>
+  :root {
+    --bg: #14161c;
+    --card: #1c1f28;
+    --card-border: #2a2e3a;
+    --text: #e9e8e3;
+    --text-dim: #a8a8a2;
+    --text-faint: #8a8a83;
+    --accent: #d97757;
+    --in-corso: #4fb8a0;
+    --in-pausa: #d9a441;
+    --futuro: #7c8bc4;
+    --permanente: #8a6fb5;
+    --alta: #d9695a;
+    --media: #d9a441;
+    --bassa: #8a8a83;
+    --freq-daily: #4fb8a0;
+    --freq-weekly: #5b9be0;
+    --freq-monthly: #d9a441;
+    --freq-yearly: #b177d9;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 14px 20px 24px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  .wrap { max-width: 2320px; margin: 0 auto; }
+  h1 {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0 0 3px;
+    letter-spacing: -0.01em;
+  }
+  .subtitle { color: var(--text-dim); font-size: 12px; margin: 0 0 12px; }
+
+  .add-form {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 10px;
+    padding: 10px;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+  }
+  .add-form input[type=text] {
+    flex: 1 1 220px;
+    min-width: 160px;
+    background: var(--bg);
+    border: 1px solid var(--card-border);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 7px 8px;
+    font-size: 14px;
+  }
+  .add-form select {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 7px 8px;
+    font-size: 13px;
+  }
+  .add-form button {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    color: var(--text);
+    font-weight: 600;
+    font-size: 16px;
+    line-height: 1;
+    border-radius: 6px;
+    padding: 7px 12px;
+    cursor: pointer;
+  }
+  .add-form button:hover { border-color: var(--accent); }
+  .add-form button#board-filter-clear {
+    background: none;
+    color: var(--text-dim);
+    font-weight: 400;
+    font-size: 12px;
+  }
+  .add-form button#board-filter-clear:hover { color: var(--text); }
+  .add-form input[type=text]:focus, .add-form select:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+
+  .error { color: var(--alta); font-size: 12px; margin: -20px 0 20px; display: none; }
+
+  .board {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin-bottom: 6px;
+  }
+  .col-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .board-col {
+    padding-right: 4px;
+    border-radius: 8px;
+    transition: background 0.12s, box-shadow 0.12s;
+  }
+  .board-col.drag-over {
+    background: rgba(217, 119, 87, 0.07);
+    box-shadow: inset 0 0 0 1px var(--accent);
+  }
+  .card[draggable="true"] { cursor: grab; }
+  .card.dragging { opacity: 0.4; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .count { color: var(--text-faint); font-weight: 400; text-transform: none; letter-spacing: 0; }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-left: 3px solid transparent;
+    border-radius: 8px;
+    padding: 7px 8px 6px;
+    margin-bottom: 7px;
+  }
+  .card-title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .card-title {
+    font-size: 14px;
+    font-weight: 500;
+    word-break: break-word;
+  }
+  .card-controls {
+    display: flex;
+    gap: 6px;
+    margin-top: 7px;
+    align-items: center;
+  }
+  .card select {
+    background: var(--bg);
+    border: 1px solid var(--card-border);
+    color: var(--text-dim);
+    border-radius: 5px;
+    padding: 3px 5px;
+    font-size: 12px;
+  }
+  .card-controls .inline-edit-select {
+    font-size: 12px;
+  }
+  .project-type-badge, .status-badge, .priority-badge {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    border-radius: 4px;
+    padding: 2px 7px;
+    background: var(--bg);
+    border: 1px solid var(--card-border);
+    color: var(--text-dim);
+    cursor: pointer;
+  }
+  .project-type-badge:hover, .status-badge:hover, .priority-badge:hover {
+    color: var(--text);
+    border-color: var(--accent);
+  }
+  .del-btn {
+    background: none;
+    border: none;
+    color: var(--text-faint);
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+    padding: 2px 4px;
+  }
+  .del-btn:hover { color: var(--alta); }
+
+  .empty-col {
+    color: var(--text-faint);
+    font-size: 12px;
+    padding: 8px 2px;
+  }
+  .loading { color: var(--text-dim); font-size: 13px; }
+
+  .section-title {
+    font-size: 14px;
+    font-weight: 600;
+    margin: 0 0 3px;
+  }
+  .section-subtitle { color: var(--text-dim); font-size: 11px; margin: 0 0 8px; }
+
+  .sections-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    margin-top: 16px;
+    align-items: start;
+  }
+
+  .routine-add {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+  }
+  .routine-add input[type=text], .routine-add input[type=number] {
+    flex: 1 1 130px;
+    min-width: 100px;
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 7px 8px;
+    font-size: 13px;
+  }
+  .routine-add select {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 7px 8px;
+    font-size: 13px;
+  }
+  .routine-add button {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    color: var(--text);
+    font-size: 16px;
+    line-height: 1;
+    border-radius: 6px;
+    padding: 7px 12px;
+    cursor: pointer;
+  }
+  .routine-add button:hover { border-color: var(--accent); }
+
+  .routine-list {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .list-toggle-btn {
+    width: 100%;
+    margin-top: 6px;
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    color: var(--text-dim);
+    border-radius: 6px;
+    padding: 6px;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .list-toggle-btn:hover { border-color: var(--accent); color: var(--text); }
+  .routine-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--card-border);
+  }
+  .routine-row:last-child { border-bottom: none; }
+  .routine-row input[type=checkbox] {
+    width: 17px;
+    height: 17px;
+    accent-color: var(--in-corso);
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .routine-name {
+    flex: 1;
+    font-size: 14px;
+  }
+  .routine-name.done { color: var(--text-faint); text-decoration: line-through; }
+  .routine-freq {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--text-faint);
+    background: var(--bg);
+    border: 1px solid var(--card-border);
+    border-radius: 4px;
+    padding: 2px 7px;
+  }
+  .routine-del {
+    background: none;
+    border: none;
+    color: var(--text-faint);
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+    padding: 2px 4px;
+  }
+  .routine-cost {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-dim);
+    min-width: 60px;
+    text-align: right;
+  }
+  .routine-del:hover { color: var(--alta); }
+
+  .routine-freq.editable, .item-type.editable {
+    cursor: pointer;
+  }
+  .routine-freq.editable:hover, .item-type.editable:hover {
+    color: var(--text);
+  }
+  #routine-list .routine-freq.freq-daily, #payment-list .routine-freq.freq-daily {
+    color: var(--freq-daily);
+    border-color: var(--freq-daily);
+  }
+  #routine-list .routine-freq.freq-weekly, #payment-list .routine-freq.freq-weekly {
+    color: var(--freq-weekly);
+    border-color: var(--freq-weekly);
+  }
+  #routine-list .routine-freq.freq-monthly, #payment-list .routine-freq.freq-monthly {
+    color: var(--freq-monthly);
+    border-color: var(--freq-monthly);
+  }
+  #routine-list .routine-freq.freq-yearly, #payment-list .routine-freq.freq-yearly {
+    color: var(--freq-yearly);
+    border-color: var(--freq-yearly);
+  }
+  .routine-cost.editable { cursor: pointer; }
+  .routine-cost.editable:hover { text-decoration: underline; color: var(--text); }
+  .cost-edit-input {
+    width: 100px;
+    background: var(--bg);
+    border: 1px solid var(--accent);
+    color: var(--text);
+    border-radius: 5px;
+    padding: 3px 6px;
+    font-size: 12px;
+    text-align: right;
+  }
+  .editable-name { cursor: pointer; }
+  .editable-name:hover { text-decoration: underline; }
+
+  .editable-name:focus-visible,
+  .routine-freq.editable:focus-visible,
+  .item-type.editable:focus-visible,
+  .project-type-badge:focus-visible,
+  .status-badge:focus-visible,
+  .priority-badge:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 3px;
+  }
+  .name-edit-input {
+    flex: 1;
+    min-width: 80px;
+    background: var(--bg);
+    border: 1px solid var(--accent);
+    color: var(--text);
+    border-radius: 5px;
+    padding: 3px 6px;
+    font-size: 13px;
+  }
+
+  .sort-select {
+    max-width: 130px;
+    flex: 0 0 auto;
+  }
+  .inline-edit-select {
+    background: var(--card);
+    border: 1px solid var(--accent);
+    color: var(--text);
+    border-radius: 4px;
+    padding: 2px 4px;
+    font-size: 11px;
+  }
+
+  .type-chip button {
+    background: none;
+    border: none;
+    color: var(--text-faint);
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1;
+    padding: 0 2px;
+  }
+  .item-type {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--item-type-color, var(--text-dim));
+    background: var(--bg);
+    border: 1px solid var(--item-type-color, var(--accent));
+    border-radius: 4px;
+    padding: 2px 7px;
+  }
+
+  .type-dropdown { position: relative; display: flex; align-items: stretch; }
+  .type-dropdown .type-dropdown-btn {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 7px 10px;
+    font-size: 13px;
+    font-weight: normal;
+    cursor: pointer;
+    white-space: nowrap;
+    height: 100%;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .type-dropdown .type-dropdown-btn:hover { border-color: var(--accent); }
+  .type-dropdown-panel {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+    padding: 6px;
+    min-width: 190px;
+    max-height: 260px;
+    overflow-y: auto;
+    z-index: 20;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.35);
+  }
+  .type-dropdown-add-row {
+    display: flex;
+    gap: 6px;
+    padding: 2px 2px 8px;
+    margin-bottom: 6px;
+    border-bottom: 1px solid var(--card-border);
+  }
+  .type-dropdown-add-row input[type=text] {
+    flex: 1;
+    min-width: 0;
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 7px 8px;
+    font-size: 13px;
+  }
+  .type-dropdown-add-row button {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    color: var(--text);
+    font-size: 16px;
+    line-height: 1;
+    border-radius: 6px;
+    padding: 7px 12px;
+    cursor: pointer;
+  }
+  .type-dropdown-add-row button:hover { border-color: var(--accent); }
+  .type-chip-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 5px 6px;
+    font-size: 12px;
+    color: var(--text-dim);
+    border-radius: 5px;
+  }
+  .type-chip-row:hover { background: var(--bg); }
+  .type-chip-row button {
+    background: none;
+    border: none;
+    color: var(--text-faint);
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1;
+    padding: 0 2px;
+  }
+  .type-chip-row button:hover { color: var(--alta); }
+  .type-chip-selectable { cursor: pointer; }
+  .type-chip-selectable.selected { color: var(--text); background: var(--bg); font-weight: 600; }
+  .type-empty-note { color: var(--text-faint); font-size: 12px; padding: 4px 6px; margin: 0; }
+
+  #toast-host {
+    position: fixed;
+    left: 50%;
+    bottom: 18px;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 100;
+    width: max-content;
+    max-width: calc(100vw - 24px);
+  }
+  .toast {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-left: 3px solid var(--accent);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 13px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  }
+  .toast-error { border-left-color: var(--alta); }
+  .toast-warn { border-left-color: var(--in-pausa); }
+  .toast-action {
+    background: var(--bg);
+    border: 1px solid var(--accent);
+    color: var(--text);
+    border-radius: 5px;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .toast-close {
+    background: none;
+    border: none;
+    color: var(--text-faint);
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0 2px;
+  }
+  .toast-close:hover { color: var(--text); }
+
+  @media (max-width: 1500px) {
+    .sections-grid { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 1100px) {
+    .board { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+  }
+
+  @media (max-width: 700px) {
+    html, body { overflow-x: hidden; }
+    body { padding: 12px 12px 24px; }
+    .wrap { max-width: 100%; }
+    h1 { font-size: 20px; }
+    .subtitle { font-size: 12px; line-height: 1.5; }
+
+    .add-form, .routine-add {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .add-form input[type=text],
+    .add-form select,
+    .add-form button,
+    .routine-add input[type=text],
+    .routine-add input[type=number],
+    .routine-add select,
+    .routine-add button {
+      width: 100%;
+      min-width: 0;
+      flex: 1 1 auto;
+    }
+    .add-form input[type=text], .add-form select,
+    .routine-add input[type=text], .routine-add input[type=number], .routine-add select {
+      min-height: 44px;
+      font-size: 16px;
+      padding: 10px 12px;
+    }
+    .add-form button, .routine-add button {
+      min-height: 46px;
+      font-size: 18px;
+    }
+    .sort-select { max-width: 100%; }
+
+    .type-dropdown { width: 100%; }
+    .type-dropdown .type-dropdown-btn {
+      width: 100%;
+      justify-content: space-between;
+      min-height: 44px;
+      font-size: 15px;
+    }
+    .type-dropdown-panel {
+      left: 0;
+      right: 0;
+      width: 100%;
+      min-width: 0;
+      max-height: 280px;
+    }
+    .type-dropdown-add-row input[type=text] {
+      min-height: 40px;
+      font-size: 15px;
+    }
+    .type-dropdown-add-row button { min-height: 40px; min-width: 44px; }
+    .type-chip-row { padding: 10px 8px; font-size: 14px; }
+
+    .board {
+      grid-template-columns: 1fr !important;
+      gap: 12px;
+    }
+    .board-col { max-height: none; }
+    .card { padding: 12px 12px 10px; }
+    .card-title { font-size: 15px; }
+    .card-controls { flex-wrap: wrap; gap: 8px; }
+    .project-type-badge, .status-badge, .priority-badge {
+      font-size: 12px;
+      padding: 6px 10px;
+    }
+    .del-btn { font-size: 22px; padding: 4px 8px; }
+
+    .sections-grid { grid-template-columns: 1fr; gap: 22px; }
+    .section-title { font-size: 15px; }
+    .section-subtitle { font-size: 12px; }
+
+    .routine-row {
+      padding: 11px 12px;
+      flex-wrap: wrap;
+      gap: 8px 10px;
+    }
+    .routine-row input[type=checkbox] {
+      width: 20px;
+      height: 20px;
+      flex: 0 0 auto;
+    }
+    .routine-name { font-size: 14px; }
+    .routine-freq, .item-type {
+      font-size: 12px;
+      padding: 5px 10px;
+    }
+    .routine-cost { font-size: 14px; }
+    .routine-del { font-size: 22px; padding: 4px 8px; }
+    .name-edit-input, .cost-edit-input, .inline-edit-select {
+      font-size: 14px;
+      min-height: 32px;
+    }
+
+    .list-toggle-btn { min-height: 44px; font-size: 14px; }
+
+    #toast-host { left: 12px; right: 12px; transform: none; width: auto; max-width: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Life Tracker</h1>
+  <p class="subtitle">Progetti, routine, pagamenti e acquisti. Salvato automaticamente nel browser di questo dispositivo.</p>
+
+  <div class="add-form">
+    <input type="text" id="new-name" placeholder="Nome del progetto" />
+    <div class="type-dropdown">
+      <button id="project-type-dropdown-toggle" class="type-dropdown-btn">Tipo: <span id="project-type-selected-label">Nessuno</span> &#9662;</button>
+      <div id="project-type-dropdown-panel" class="type-dropdown-panel" style="display: none;">
+        <div class="type-dropdown-add-row">
+          <input type="text" id="new-project-type-name" placeholder="Nuovo tipo" />
+          <button id="add-project-type-btn" title="Aggiungi tipo">+</button>
+        </div>
+        <div id="project-type-chip-list"></div>
+      </div>
+    </div>
+    <select id="new-status">
+      <option value="in corso">In corso</option>
+      <option value="in pausa">In pausa</option>
+      <option value="futuro" selected>Futuro</option>
+      <option value="permanente">Permanente</option>
+    </select>
+    <select id="new-priority">
+      <option value="alta">Priorità alta</option>
+      <option value="media" selected>Priorità media</option>
+      <option value="bassa">Priorità bassa</option>
+    </select>
+    <button id="add-btn" title="Aggiungi">+</button>
+    <select id="board-type-filter" aria-label="Filtra progetti per tipo">
+      <option value="">Tutti i tipi</option>
+    </select>
+    <button id="board-filter-clear" type="button">Azzera filtro</button>
+    <button id="export-btn" type="button" title="Esporta backup" aria-label="Esporta backup" style="background:none;border:1px solid var(--card-border);color:var(--text-dim);border-radius:6px;padding:7px 12px;font-size:15px;cursor:pointer;line-height:1;">&#8595;</button>
+    <button id="import-btn" type="button" title="Importa backup" aria-label="Importa backup" style="background:none;border:1px solid var(--card-border);color:var(--text-dim);border-radius:6px;padding:7px 12px;font-size:15px;cursor:pointer;line-height:1;">&#8593;</button>
+  </div>
+  <p class="error" id="form-error">Inserisci un nome per il progetto.</p>
+
+  <div id="board" class="board">
+    <p class="loading">Caricamento...</p>
+  </div>
+
+  <div class="sections-grid">
+    <div class="section-col">
+      <p class="section-title">Routine ricorrenti</p>
+      <p class="section-subtitle">Giornaliere, mensili o annuali: si resettano da sole.</p>
+
+      <div class="routine-add">
+        <select id="routine-sort" class="sort-select">
+          <option value="default">Predefinito</option>
+          <option value="name">Nome (A-Z)</option>
+        </select>
+        <input type="text" id="new-routine-name" placeholder="Nome routine" />
+        <select id="new-routine-freq">
+          <option value="daily">Giornaliera</option>
+          <option value="weekly">Settimanale</option>
+          <option value="monthly" selected>Mensile</option>
+          <option value="yearly">Annuale</option>
+        </select>
+        <button id="add-routine-btn" title="Aggiungi">+</button>
+      </div>
+
+      <div id="routine-list" class="routine-list">
+        <p class="loading" style="padding: 12px 14px;">Caricamento...</p>
+      </div>
+    </div>
+
+    <div class="section-col">
+      <p class="section-title">Pagamenti ricorrenti</p>
+      <p class="section-subtitle">Mensili o annuali: si resettano da soli quando li spunti.</p>
+
+      <div class="routine-add">
+        <select id="payment-sort" class="sort-select">
+          <option value="default">Predefinito</option>
+          <option value="name">Nome (A-Z)</option>
+          <option value="cost-asc">Costo (crescente)</option>
+          <option value="cost-desc">Costo (decrescente)</option>
+        </select>
+        <input type="text" id="new-payment-name" placeholder="Nome pagamento" />
+        <input type="number" id="new-payment-cost" placeholder="Costo (€)" step="0.01" min="0" style="max-width: 100px;" />
+        <select id="new-payment-freq">
+          <option value="weekly">Settimanale</option>
+          <option value="monthly" selected>Mensile</option>
+          <option value="yearly">Annuale</option>
+        </select>
+        <button id="add-payment-btn" title="Aggiungi">+</button>
+      </div>
+
+      <div id="payment-list" class="routine-list">
+        <p class="loading" style="padding: 12px 14px;">Caricamento...</p>
+      </div>
+      <p class="section-subtitle" id="payment-total" style="margin-top: 8px;"></p>
+    </div>
+
+    <div class="section-col">
+      <p class="section-title">Cose da comprare</p>
+      <p class="section-subtitle">Crea i tuoi tipi e assegnali agli oggetti.</p>
+
+      <div class="routine-add">
+        <select id="item-sort" class="sort-select">
+          <option value="default">Predefinito</option>
+          <option value="name">Nome (A-Z)</option>
+          <option value="cost-asc">Costo (crescente)</option>
+          <option value="cost-desc">Costo (decrescente)</option>
+          <option value="type">Tipo</option>
+        </select>
+        <input type="text" id="new-item-name" placeholder="Nome oggetto" />
+        <div class="type-dropdown">
+          <button id="type-dropdown-toggle" class="type-dropdown-btn">Tipo: <span id="item-type-selected-label">Nessuno</span> &#9662;</button>
+          <div id="type-dropdown-panel" class="type-dropdown-panel" style="display: none;">
+            <div class="type-dropdown-add-row">
+              <input type="text" id="new-type-name" placeholder="Nuovo tipo" />
+              <button id="add-type-btn" title="Aggiungi tipo">+</button>
+            </div>
+            <div id="type-chip-list"></div>
+          </div>
+        </div>
+        <input type="text" id="new-item-cost" placeholder="Costo (es. 45 o 120-170)" style="max-width: 140px;" />
+        <button id="add-item-btn" title="Aggiungi">+</button>
+      </div>
+
+      <div id="item-list" class="routine-list">
+        <p class="loading" style="padding: 12px 14px;">Caricamento...</p>
+      </div>
+      <button id="item-list-toggle" class="list-toggle-btn" style="display: none;">Mostra tutti</button>
+      <p class="section-subtitle" id="item-total" style="margin-top: 8px;"></p>
+    </div>
+  </div>
+</div>
+
+<div id="toast-host" role="status" aria-live="polite" aria-atomic="false"></div>
+
+<script>
+'use strict';
+
+/* =========================================================================
+   Life Tracker — versione web (GitHub Pages).
+   Persistenza nel browser (localStorage) tramite lo stesso oggetto `api`
+   usato dalla versione desktop: load_all / save / export_data / import_data.
+   I dati restano nel browser di chi usa la pagina, non sul server.
+   ========================================================================= */
+
+/* ---------- costanti ---------- */
+const TYPE_COLOR_PALETTE = ['#4fb8a0', '#5b9be0', '#d9a441', '#b177d9', '#d9738a', '#7fc142', '#e0894f', '#4fa8d9'];
+const STATUS_META = {
+  'permanente': { label: 'Permanente', color: 'var(--permanente)' },
+  'in corso': { label: 'In corso', color: 'var(--in-corso)' },
+  'in pausa': { label: 'In pausa', color: 'var(--in-pausa)' },
+  'futuro': { label: 'Futuro', color: 'var(--futuro)' }
+};
+const PRIORITY_ORDER = { alta: 0, media: 1, bassa: 2 };
+const PRIORITY_COLOR = { alta: 'var(--alta)', media: 'var(--media)', bassa: 'var(--bassa)' };
+const STATUSES = Object.keys(STATUS_META);
+const PRIORITIES = ['alta', 'media', 'bassa'];
+const ROUTINE_FREQS = ['daily', 'weekly', 'monthly', 'yearly'];
+const PAYMENT_FREQS = ['weekly', 'monthly', 'yearly'];
+const FREQ_LABEL = { daily: 'Giornaliera', weekly: 'Settimanale', monthly: 'Mensile', yearly: 'Annuale' };
+const ITEM_COLLAPSE_LIMIT = 11;
+
+/* ---------- ponte dati (sostituisce il vecchio LS su localStorage) ---------- */
+// `initial` è l'intero file JSON già caricato da Python prima del boot.
+// get/set lavorano su una cache in memoria e save() scrive nel browser in
+// background: l'UI non aspetta mai il round-trip.
+function createDB(initial, api) {
+  const cache = Object.assign({}, initial || {});
+  function get(key, fallback) {
+    return Object.prototype.hasOwnProperty.call(cache, key) ? cache[key] : fallback;
+  }
+  function set(key, value) {
+    cache[key] = value;
+    api.save(key, value).catch((e) => {
+      console.error('Salvataggio nel browser non riuscito:', key, e);
+      toast('Salvataggio nel browser non riuscito (' + key + ').', { kind: 'error', timeout: 9000 });
+    });
+    return true;
+  }
+  return { get: get, set: set, raw: get, setRaw: set };
+}
+
+/* ---------- utilità varie ---------- */
+let uidCounter = 0;
+function uid(prefix) {
+  let rand;
+  try {
+    rand = (crypto && crypto.randomUUID) ? crypto.randomUUID().replace(/-/g, '').slice(0, 16) : null;
+  } catch (e) { rand = null; }
+  if (!rand) rand = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  uidCounter = (uidCounter + 1) % 1e6;
+  return prefix + '_' + rand + uidCounter.toString(36);
+}
+function str(v) { return typeof v === 'string' ? v : ''; }
+function cap(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
+function asArray(x) { return Array.isArray(x) ? x : []; }
+function formatCost(cost) { return '€' + Number(cost).toFixed(2); }
+
+function mergeById(target, incoming) {
+  const seen = new Set(target.map(x => x.id));
+  incoming.forEach(x => { if (x && !seen.has(x.id)) { target.push(x); seen.add(x.id); } });
+  return target;
+}
+
+function iconButton(text, className, aria, onClick) {
+  const b = document.createElement('button');
+  if (className) b.className = className;
+  b.textContent = text;
+  b.setAttribute('aria-label', aria);
+  b.addEventListener('click', onClick);
+  return b;
+}
+
+function parseCostInput(text) {
+  if (text === null || text === undefined) return null;
+  const trimmed = String(text).trim();
+  if (!trimmed) return null;
+  if (trimmed.includes('-')) {
+    const parts = trimmed.split('-').map(s => parseFloat(s.trim().replace(',', '.')));
+    if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+      return { min: Math.min(parts[0], parts[1]), max: Math.max(parts[0], parts[1]) };
+    }
+    return null;
+  }
+  const val = parseFloat(trimmed.replace(',', '.'));
+  if (isNaN(val)) return null;
+  return { min: val, max: val };
+}
+
+/* ---------- date / periodi ---------- */
+function isoWeekKey(date) {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNum = (d.getUTCDay() + 6) % 7;
+  d.setUTCDate(d.getUTCDate() - dayNum + 3);
+  const firstThursday = new Date(Date.UTC(d.getUTCFullYear(), 0, 4));
+  const firstDayNum = (firstThursday.getUTCDay() + 6) % 7;
+  firstThursday.setUTCDate(firstThursday.getUTCDate() - firstDayNum + 3);
+  const weekNum = 1 + Math.round((d - firstThursday) / (7 * 24 * 3600 * 1000));
+  return d.getUTCFullYear() + '-W' + String(weekNum).padStart(2, '0');
+}
+function periodKey(freq, date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  if (freq === 'daily') return year + '-' + month + '-' + day;
+  if (freq === 'weekly') return isoWeekKey(date);
+  if (freq === 'yearly') return String(year);
+  return year + '-' + month;
+}
+
+/* ---------- toast + undo ---------- */
+const toastHost = document.getElementById('toast-host');
+function toast(message, opts) {
+  opts = opts || {};
+  const kind = opts.kind || 'info';
+  const timeout = opts.timeout != null ? opts.timeout : (opts.actionLabel ? 8000 : 4000);
+  const el = document.createElement('div');
+  el.className = 'toast toast-' + kind;
+  const span = document.createElement('span');
+  span.textContent = message;
+  el.appendChild(span);
+  let timer = null;
+  const dismiss = () => { if (timer) clearTimeout(timer); el.remove(); };
+  if (opts.actionLabel && opts.onAction) {
+    el.appendChild(iconButton(opts.actionLabel, 'toast-action', opts.actionLabel, () => { opts.onAction(); dismiss(); }));
+  }
+  el.appendChild(iconButton('×', 'toast-close', 'Chiudi', dismiss));
+  toastHost.appendChild(el);
+  if (timeout) timer = setTimeout(dismiss, timeout);
+  return dismiss;
+}
+
+function deleteWithUndo(list, id, label, persistAndRender) {
+  const idx = list.findIndex(x => x.id === id);
+  if (idx === -1) return;
+  const [removed] = list.splice(idx, 1);
+  persistAndRender();
+  toast('«' + label + '» eliminato.', {
+    actionLabel: 'Annulla',
+    onAction: () => {
+      list.splice(Math.min(idx, list.length), 0, removed);
+      persistAndRender();
+    }
+  });
+}
+
+/* ---------- editor inline ---------- */
+function suspendAncestorDrag(node) {
+  const card = node.closest && node.closest('[draggable="true"]');
+  if (!card) return function () {};
+  card.draggable = false;
+  return function () { card.draggable = true; };
+}
+
+function makeInlineText(displayText, rawValue, onCommit, className, inputClass) {
+  const span = document.createElement('span');
+  span.className = ((className || '') + ' editable-name').trim();
+  span.textContent = displayText;
+  span.title = 'Clicca per modificare';
+  span.tabIndex = 0;
+  span.setAttribute('role', 'button');
+  span.setAttribute('aria-label', 'Modifica: ' + displayText);
+  const activate = () => {
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = inputClass || 'name-edit-input';
+    input.value = rawValue;
+    const restoreDrag = suspendAncestorDrag(span);
+    let done = false;
+    const finish = (save) => {
+      if (done) return;
+      done = true;
+      restoreDrag();
+      onCommit(save ? input.value : null);
+    };
+    input.addEventListener('blur', () => finish(true));
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') input.blur();
+      else if (e.key === 'Escape') finish(false);
+    });
+    span.replaceWith(input);
+    input.focus();
+    input.select();
+  };
+  span.addEventListener('click', activate);
+  span.addEventListener('keydown', (e) => { if (e.key === 'Enter') activate(); });
+  return span;
+}
+
+function makeInlineSelect(displayText, badgeClass, options, currentValue, onChange, rerender) {
+  const span = document.createElement('span');
+  span.className = badgeClass + ' editable';
+  span.textContent = displayText;
+  span.title = 'Clicca per modificare';
+  span.tabIndex = 0;
+  span.setAttribute('role', 'button');
+  span.setAttribute('aria-label', 'Modifica: ' + displayText);
+  const activate = () => {
+    const select = document.createElement('select');
+    select.className = 'inline-edit-select';
+    options.forEach(opt => {
+      const o = document.createElement('option');
+      o.value = opt.value;
+      o.textContent = opt.label;
+      if (opt.value === currentValue) o.selected = true;
+      select.appendChild(o);
+    });
+    const restoreDrag = suspendAncestorDrag(span);
+    let changed = false;
+    select.addEventListener('change', () => { changed = true; restoreDrag(); onChange(select.value); });
+    select.addEventListener('blur', () => { restoreDrag(); if (!changed) rerender(); });
+    span.replaceWith(select);
+    select.focus();
+  };
+  span.addEventListener('click', activate);
+  span.addEventListener('keydown', (e) => { if (e.key === 'Enter') activate(); });
+  return span;
+}
+
+/* ---------- dropdown "tipo" ---------- */
+function setupDropdownToggle(toggleId, panelId) {
+  const toggleBtn = document.getElementById(toggleId);
+  const panel = document.getElementById(panelId);
+  toggleBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const isOpen = panel.style.display === 'block';
+    document.querySelectorAll('.type-dropdown-panel').forEach(p => { p.style.display = 'none'; });
+    panel.style.display = isOpen ? 'none' : 'block';
+  });
+  panel.addEventListener('click', (e) => e.stopPropagation());
+}
+document.addEventListener('click', () => {
+  document.querySelectorAll('.type-dropdown-panel').forEach(p => { p.style.display = 'none'; });
+});
+
+/* ---------- sanitizzazione (dati letti dal file JSON) ---------- */
+function sanitizeProject(p) {
+  if (!p || typeof p !== 'object') return null;
+  const name = str(p.name).trim();
+  if (!name) return null;
+  return {
+    id: str(p.id) || uid('p'),
+    name: name,
+    status: STATUSES.includes(p.status) ? p.status : 'futuro',
+    priority: PRIORITIES.includes(p.priority) ? p.priority : 'media',
+    typeId: str(p.typeId) || null
+  };
+}
+function sanitizeRecurring(e, isPayment) {
+  if (!e || typeof e !== 'object') return null;
+  const name = str(e.name).trim();
+  if (!name) return null;
+  const freqs = isPayment ? PAYMENT_FREQS : ROUTINE_FREQS;
+  const out = {
+    id: str(e.id) || uid(isPayment ? 'pay' : 'r'),
+    name: name,
+    frequency: freqs.includes(e.frequency) ? e.frequency : 'monthly',
+    lastCompleted: typeof e.lastCompleted === 'string' ? e.lastCompleted : null
+  };
+  if (isPayment) {
+    const c = Number(e.cost);
+    out.cost = isFinite(c) && c >= 0 ? c : 0;
+  }
+  return out;
+}
+function sanitizeType(t, prefix) {
+  if (!t || typeof t !== 'object') return null;
+  const name = str(t.name).trim();
+  if (!name) return null;
+  return { id: str(t.id) || uid(prefix || 't'), name: name };
+}
+function sanitizeItem(it) {
+  if (!it || typeof it !== 'object') return null;
+  const name = str(it.name).trim();
+  if (!name) return null;
+  const fallback = Number(it.cost);
+  let min = Number(it.costMin);
+  let max = Number(it.costMax);
+  if (!isFinite(min)) min = isFinite(fallback) ? fallback : 0;
+  if (!isFinite(max)) max = isFinite(fallback) ? fallback : min;
+  if (min > max) { const s = min; min = max; max = s; }
+  return { id: str(it.id) || uid('item'), name: name, typeId: str(it.typeId) || null, costMin: min, costMax: max };
+}
+
+/* =========================================================================
+   boot(): costruisce tutto DOPO che i dati sono arrivati da Python.
+   ========================================================================= */
+function boot(initialData, api) {
+  const DB = createDB(initialData, api);
+
+  /* ---------- gestore tipi (usato per "Cose da comprare" e tipi progetto) --- */
+  function createTypeManager(cfg) {
+    let types = asArray(DB.get(cfg.key, [])).map(t => sanitizeType(t, cfg.idPrefix)).filter(Boolean);
+    let selectedId = '';
+    const panel = document.getElementById(cfg.panelId);
+    const chipList = document.getElementById(cfg.chipListId);
+    const selectedLabel = document.getElementById(cfg.selectedLabelId);
+    const addInput = document.getElementById(cfg.addInputId);
+
+    function persist() { DB.set(cfg.key, types); }
+    function sorted() { return types.slice().sort((a, b) => a.name.localeCompare(b.name, 'it')); }
+    function name(id) { const t = types.find(t => t.id === id); return t ? t.name : ''; }
+    function color(id) {
+      if (!id) return null;
+      const idx = sorted().findIndex(t => t.id === id);
+      return idx === -1 ? null : TYPE_COLOR_PALETTE[idx % TYPE_COLOR_PALETTE.length];
+    }
+    function notifyConsumer() { if (typeof cfg.onChange === 'function') cfg.onChange(); }
+
+    function chipRow(label, id, deletableId) {
+      const row = document.createElement('div');
+      row.className = 'type-chip-row type-chip-selectable' + (id === selectedId ? ' selected' : '');
+      const span = document.createElement('span');
+      span.textContent = label;
+      row.appendChild(span);
+      if (deletableId) {
+        row.appendChild(iconButton('×', '', 'Elimina tipo ' + label, (e) => {
+          e.stopPropagation();
+          remove(deletableId);
+        }));
+      }
+      row.addEventListener('click', () => {
+        selectedId = id;
+        selectedLabel.textContent = id ? name(id) : 'Nessuno';
+        panel.style.display = 'none';
+        render();
+      });
+      return row;
+    }
+
+    function render() {
+      if (!types.some(t => t.id === selectedId)) selectedId = '';
+      chipList.innerHTML = '';
+      chipList.appendChild(chipRow(cfg.noneLabel, '', null));
+      const list = sorted();
+      if (list.length === 0) {
+        const empty = document.createElement('p');
+        empty.className = 'type-empty-note';
+        empty.textContent = 'Nessun tipo creato.';
+        chipList.appendChild(empty);
+      } else {
+        list.forEach(t => chipList.appendChild(chipRow(t.name, t.id, t.id)));
+      }
+      selectedLabel.textContent = selectedId ? name(selectedId) : 'Nessuno';
+    }
+
+    function add() {
+      const v = addInput.value.trim();
+      if (!v) return;
+      types.push({ id: uid(cfg.idPrefix), name: v });
+      addInput.value = '';
+      persist();
+      render();
+    }
+
+    function remove(id) {
+      const t = types.find(t => t.id === id);
+      deleteWithUndo(types, id, t ? t.name : '', () => {
+        persist();
+        render();
+        notifyConsumer();
+      });
+    }
+
+    document.getElementById(cfg.addBtnId).addEventListener('click', add);
+    addInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') add(); });
+    setupDropdownToggle(cfg.toggleId, cfg.panelId);
+
+    return {
+      render: render,
+      name: name,
+      color: color,
+      sortedOptions: () => sorted().map(t => ({ value: t.id, label: t.name })),
+      getSelected: () => selectedId,
+      resetSelected: () => { selectedId = ''; selectedLabel.textContent = 'Nessuno'; },
+      snapshot: () => types,
+      replaceAll: (arr) => { types = arr; persist(); render(); notifyConsumer(); },
+      mergeIn: (arr) => { mergeById(types, arr); persist(); render(); notifyConsumer(); }
+    };
+  }
+
+  /* ---------- lista ricorrente (routine e pagamenti condividono il codice) -- */
+  function createRecurringList(cfg) {
+    let data = asArray(DB.get(cfg.key, [])).map(e => sanitizeRecurring(e, cfg.hasCost)).filter(Boolean);
+    let sort = DB.raw(cfg.sortKey, 'default');
+    const listEl = document.getElementById(cfg.listElId);
+    const sortEl = document.getElementById(cfg.sortElId);
+    const totalEl = cfg.totalElId ? document.getElementById(cfg.totalElId) : null;
+    const freqOptions = cfg.freqs.map(f => ({ value: f, label: FREQ_LABEL[f] }));
+
+    function persist() { DB.set(cfg.key, data); }
+    function save() { persist(); render(); }
+    function isDone(e, now) { return e.lastCompleted === periodKey(e.frequency, now || new Date()); }
+
+    function sortedData() {
+      const arr = data.slice();
+      if (sort === 'name') arr.sort((a, b) => str(a.name).localeCompare(str(b.name), 'it'));
+      else if (sort === 'cost-asc') arr.sort((a, b) => Number(a.cost || 0) - Number(b.cost || 0));
+      else if (sort === 'cost-desc') arr.sort((a, b) => Number(b.cost || 0) - Number(a.cost || 0));
+      return arr;
+    }
+
+    function renderRow(e, now) {
+      const row = document.createElement('div');
+      row.className = 'routine-row';
+      const done = isDone(e, now);
+
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.checked = done;
+      checkbox.setAttribute('aria-label', 'Segna ' + e.name + ' come fatto');
+      checkbox.addEventListener('change', (ev) => {
+        e.lastCompleted = ev.target.checked ? periodKey(e.frequency, new Date()) : null;
+        save();
+      });
+
+      const nameEl = makeInlineText(e.name, e.name, (val) => {
+        if (val !== null) { const t = val.trim(); if (t) { e.name = t; persist(); } }
+        render();
+      }, 'routine-name' + (done ? ' done' : ''));
+
+      const freq = makeInlineSelect(FREQ_LABEL[e.frequency] || e.frequency, 'routine-freq',
+        freqOptions, e.frequency, (val) => {
+          e.frequency = val;
+          e.lastCompleted = null;
+          save();
+        }, render);
+      freq.classList.add('freq-' + e.frequency);
+
+      row.append(checkbox, nameEl, freq);
+
+      if (cfg.hasCost) {
+        row.appendChild(makeInlineText(formatCost(e.cost), String(e.cost), (val) => {
+          if (val !== null) {
+            const parsed = parseFloat(String(val).replace(',', '.'));
+            if (!isNaN(parsed) && parsed >= 0) { e.cost = parsed; persist(); }
+          }
+          render();
+        }, 'routine-cost editable', 'cost-edit-input'));
+      }
+
+      row.appendChild(iconButton('×', 'routine-del', 'Elimina ' + cfg.entity, () => {
+        deleteWithUndo(data, e.id, e.name, save);
+      }));
+      return row;
+    }
+
+    function renderTotal() {
+      if (!totalEl) return;
+      if (data.length === 0) { totalEl.textContent = ''; totalEl.title = ''; return; }
+      const sum = (f) => data.filter(p => p.frequency === f).reduce((s, p) => s + Number(p.cost || 0), 0);
+      const d = sum('daily'), w = sum('weekly'), m = sum('monthly'), y = sum('yearly');
+      const monthlyEq = m + w * 4.345 + d * 30.44;
+      const yearlyEq = y + m * 12 + w * 52 + d * 365;
+      totalEl.textContent = 'Totale mensile: ' + formatCost(monthlyEq) + ' · Totale annuale: ' + formatCost(yearlyEq);
+      totalEl.title = 'Equivalenze: 1 settimana ≈ 4,345 mesi/12 · 1 giorno ≈ 30,44 giorni/mese. '
+        + 'Le voci settimanali e giornaliere sono convertite in importo mensile e annuale medio.';
+    }
+
+    function render() {
+      listEl.innerHTML = '';
+      if (data.length === 0) {
+        const empty = document.createElement('p');
+        empty.className = 'empty-col';
+        empty.style.padding = '12px 14px';
+        empty.textContent = cfg.emptyText;
+        listEl.appendChild(empty);
+      } else {
+        const now = new Date();
+        sortedData().forEach(e => listEl.appendChild(renderRow(e, now)));
+      }
+      renderTotal();
+    }
+
+    function add() {
+      const nameInput = document.getElementById(cfg.nameInputId);
+      const name = nameInput.value.trim();
+      if (!name) { toast('Inserisci un nome per ' + (cfg.hasCost ? 'il pagamento' : 'la routine') + '.', { kind: 'warn' }); nameInput.focus(); return; }
+      const entry = {
+        id: uid(cfg.idPrefix),
+        name: name,
+        frequency: document.getElementById(cfg.freqInputId).value,
+        lastCompleted: null
+      };
+      if (cfg.hasCost) {
+        const costInput = document.getElementById(cfg.costInputId);
+        const cost = parseFloat(String(costInput.value).replace(',', '.'));
+        if (isNaN(cost) || cost < 0) { toast('Inserisci un costo valido (numero ≥ 0).', { kind: 'warn' }); costInput.focus(); return; }
+        entry.cost = cost;
+        costInput.value = '';
+      }
+      data.push(entry);
+      nameInput.value = '';
+      save();
+    }
+
+    document.getElementById(cfg.addBtnId).addEventListener('click', add);
+    document.getElementById(cfg.nameInputId).addEventListener('keydown', (e) => { if (e.key === 'Enter') add(); });
+    if (cfg.hasCost) {
+      document.getElementById(cfg.costInputId).addEventListener('keydown', (e) => { if (e.key === 'Enter') add(); });
+    }
+    sortEl.value = sort;
+    sortEl.addEventListener('change', (e) => {
+      sort = e.target.value;
+      DB.setRaw(cfg.sortKey, sort);
+      render();
+    });
+
+    return {
+      render: render,
+      snapshot: () => data,
+      replaceAll: (arr) => { data = arr; persist(); render(); },
+      mergeIn: (arr) => { mergeById(data, arr); persist(); render(); }
+    };
+  }
+
+  /* ---------- tipi (creati prima dei moduli che li consumano) -------------- */
+  const itemTypeManager = createTypeManager({
+    key: 'shopping-types',
+    panelId: 'type-dropdown-panel',
+    chipListId: 'type-chip-list',
+    selectedLabelId: 'item-type-selected-label',
+    addInputId: 'new-type-name',
+    addBtnId: 'add-type-btn',
+    toggleId: 'type-dropdown-toggle',
+    idPrefix: 't',
+    noneLabel: 'Senza tipo',
+    onChange: () => itemsModule.render()
+  });
+
+  const projectTypeManager = createTypeManager({
+    key: 'project-types',
+    panelId: 'project-type-dropdown-panel',
+    chipListId: 'project-type-chip-list',
+    selectedLabelId: 'project-type-selected-label',
+    addInputId: 'new-project-type-name',
+    addBtnId: 'add-project-type-btn',
+    toggleId: 'project-type-dropdown-toggle',
+    idPrefix: 'pt',
+    noneLabel: 'Nessun tipo',
+    onChange: () => projectsModule.render()
+  });
+
+  /* ---------- board progetti ------------------------------------------------ */
+  const projectsModule = (() => {
+    const KEY = 'projects-list';
+    let projects = asArray(DB.get(KEY, [])).map(sanitizeProject).filter(Boolean);
+    const boardEl = document.getElementById('board');
+
+    function persist() { DB.set(KEY, projects); }
+    function save() { persist(); render(); }
+
+    let filterType = '';
+    let dragId = null;
+
+    function update(id, changes) {
+      const p = projects.find(p => p.id === id);
+      if (!p) return;
+      Object.assign(p, changes);
+      save();
+    }
+
+    function moveToStatus(id, status, undoToast) {
+      const p = projects.find(p => p.id === id);
+      if (!p || p.status === status || !STATUS_META[status]) return;
+      const prev = p.status;
+      p.status = status;
+      save();
+      if (undoToast) {
+        toast('«' + p.name + '» spostato in ' + STATUS_META[status].label + '.', {
+          actionLabel: 'Annulla',
+          onAction: () => {
+            const cur = projects.find(x => x.id === id);
+            if (cur) { cur.status = prev; save(); }
+          }
+        });
+      }
+    }
+
+    function matchesFilter(p) {
+      if (filterType && (p.typeId || '') !== filterType) return false;
+      return true;
+    }
+
+    function renderCard(p) {
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.style.borderLeftColor = PRIORITY_COLOR[p.priority] || 'transparent';
+      card.draggable = true;
+      card.dataset.id = p.id;
+      card.addEventListener('dragstart', (e) => {
+        card.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        try { e.dataTransfer.setData('text/plain', p.id); } catch (err) {}
+        dragId = p.id;
+      });
+      card.addEventListener('dragend', () => {
+        card.classList.remove('dragging');
+        dragId = null;
+        document.querySelectorAll('.board-col.drag-over').forEach(c => c.classList.remove('drag-over'));
+      });
+
+      const titleRow = document.createElement('div');
+      titleRow.className = 'card-title-row';
+      titleRow.appendChild(makeInlineText(p.name, p.name, (val) => {
+        if (val === null) return render();
+        const trimmed = val.trim();
+        if (trimmed) update(p.id, { name: trimmed }); else render();
+      }, 'card-title'));
+      titleRow.appendChild(iconButton('×', 'del-btn', 'Elimina progetto', () => {
+        deleteWithUndo(projects, p.id, p.name, save);
+      }));
+      card.appendChild(titleRow);
+
+      const controls = document.createElement('div');
+      controls.className = 'card-controls';
+
+      const typeOptions = [{ value: '', label: 'Nessun tipo' }].concat(projectTypeManager.sortedOptions());
+      const typeBadge = makeInlineSelect(
+        p.typeId ? (projectTypeManager.name(p.typeId) || 'Nessun tipo') : 'Nessun tipo',
+        'project-type-badge', typeOptions, p.typeId || '',
+        (val) => update(p.id, { typeId: val || null }), render
+      );
+      const tc = projectTypeManager.color(p.typeId);
+      if (tc) { typeBadge.style.color = tc; typeBadge.style.borderColor = tc; }
+
+      const statusBadge = makeInlineSelect(
+        STATUS_META[p.status] ? STATUS_META[p.status].label : p.status,
+        'status-badge',
+        STATUSES.map(sk => ({ value: sk, label: STATUS_META[sk].label })),
+        p.status, (val) => update(p.id, { status: val }), render
+      );
+
+      const priorityBadge = makeInlineSelect(
+        cap(p.priority), 'priority-badge',
+        PRIORITIES.map(pr => ({ value: pr, label: cap(pr) })),
+        p.priority, (val) => update(p.id, { priority: val }), render
+      );
+
+      controls.append(typeBadge, statusBadge, priorityBadge);
+      card.appendChild(controls);
+      return card;
+    }
+
+    function orderInColumn(a, b) {
+      const pa = PRIORITY_ORDER[a.priority], pb = PRIORITY_ORDER[b.priority];
+      const oa = pa === undefined ? 99 : pa, ob = pb === undefined ? 99 : pb;
+      if (oa !== ob) return oa - ob;
+      return str(a.name).localeCompare(str(b.name), 'it');
+    }
+
+    function render() {
+      syncTypeFilterOptions();
+      boardEl.innerHTML = '';
+      const filtering = !!filterType;
+      STATUSES.forEach(statusKey => {
+        const meta = STATUS_META[statusKey];
+        const col = document.createElement('div');
+        col.className = 'board-col';
+        col.dataset.status = statusKey;
+
+        const all = projects.filter(p => p.status === statusKey);
+        const items = all.filter(matchesFilter).sort(orderInColumn);
+
+        col.addEventListener('dragover', (e) => {
+          if (!dragId) return;
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+          col.classList.add('drag-over');
+        });
+        col.addEventListener('dragleave', (e) => {
+          if (!col.contains(e.relatedTarget)) col.classList.remove('drag-over');
+        });
+        col.addEventListener('drop', (e) => {
+          e.preventDefault();
+          col.classList.remove('drag-over');
+          const id = dragId || (e.dataTransfer && e.dataTransfer.getData('text/plain'));
+          if (id) moveToStatus(id, statusKey, true);
+        });
+
+        const head = document.createElement('div');
+        head.className = 'col-head';
+        const dot = document.createElement('span');
+        dot.className = 'dot';
+        dot.style.background = meta.color;
+        const count = document.createElement('span');
+        count.className = 'count';
+        count.textContent = filtering ? '(' + items.length + '/' + all.length + ')' : '(' + all.length + ')';
+        head.append(dot, meta.label + ' ', count);
+        col.appendChild(head);
+
+        if (items.length === 0) {
+          const empty = document.createElement('div');
+          empty.className = 'empty-col';
+          empty.textContent = filtering && all.length > 0 ? 'Nessun progetto corrisponde al filtro.' : 'Nessun progetto qui.';
+          col.appendChild(empty);
+        }
+        items.forEach(p => col.appendChild(renderCard(p)));
+        boardEl.appendChild(col);
+      });
+    }
+
+    function syncTypeFilterOptions() {
+      const sel = document.getElementById('board-type-filter');
+      if (!sel) return;
+      const opts = [{ value: '', label: 'Tutti i tipi' }].concat(projectTypeManager.sortedOptions());
+      sel.innerHTML = '';
+      opts.forEach(o => {
+        const el = document.createElement('option');
+        el.value = o.value;
+        el.textContent = o.label;
+        sel.appendChild(el);
+      });
+      if (!opts.some(o => o.value === filterType)) filterType = '';
+      sel.value = filterType;
+    }
+
+    function add() {
+      const nameInput = document.getElementById('new-name');
+      const errorEl = document.getElementById('form-error');
+      const name = nameInput.value.trim();
+      if (!name) { errorEl.style.display = 'block'; return; }
+      errorEl.style.display = 'none';
+      projects.push({
+        id: uid('p'),
+        name: name,
+        status: document.getElementById('new-status').value,
+        priority: document.getElementById('new-priority').value,
+        typeId: projectTypeManager.getSelected() || null
+      });
+      nameInput.value = '';
+      projectTypeManager.resetSelected();
+      save();
+    }
+
+    document.getElementById('add-btn').addEventListener('click', add);
+    document.getElementById('new-name').addEventListener('keydown', (e) => { if (e.key === 'Enter') add(); });
+    document.getElementById('new-name').addEventListener('input', () => {
+      document.getElementById('form-error').style.display = 'none';
+    });
+
+    const typeFilterEl = document.getElementById('board-type-filter');
+    typeFilterEl.addEventListener('change', () => { filterType = typeFilterEl.value; render(); });
+    document.getElementById('board-filter-clear').addEventListener('click', () => {
+      filterType = '';
+      render();
+    });
+
+    return {
+      render: render,
+      snapshot: () => projects,
+      replaceAll: (arr) => { projects = arr; persist(); render(); },
+      mergeIn: (arr) => { mergeById(projects, arr); persist(); render(); }
+    };
+  })();
+
+  /* ---------- cose da comprare ---------------------------------------------- */
+  const itemsModule = (() => {
+    const KEY = 'shopping-items';
+    let sort = DB.raw('item-sort', 'default');
+    let expanded = false;
+    const listEl = document.getElementById('item-list');
+    const toggleBtn = document.getElementById('item-list-toggle');
+    const totalEl = document.getElementById('item-total');
+
+    function normalize(arr) {
+      return asArray(arr).map(it => sanitizeItem(it)).filter(Boolean);
+    }
+
+    let items = normalize(DB.get(KEY, []));
+
+    function persist() { DB.set(KEY, items); }
+    function save() { persist(); render(); }
+
+    function fmt(it) {
+      return it.costMin === it.costMax ? formatCost(it.costMin)
+        : formatCost(it.costMin) + ' – ' + formatCost(it.costMax);
+    }
+    function rawCost(it) {
+      return it.costMin === it.costMax ? String(it.costMin) : it.costMin + '-' + it.costMax;
+    }
+    function mid(it) { return (Number(it.costMin) + Number(it.costMax)) / 2; }
+
+    function sortedItems() {
+      const arr = items.slice();
+      if (sort === 'name') arr.sort((a, b) => str(a.name).localeCompare(str(b.name), 'it'));
+      else if (sort === 'cost-asc') arr.sort((a, b) => mid(a) - mid(b));
+      else if (sort === 'cost-desc') arr.sort((a, b) => mid(b) - mid(a));
+      else if (sort === 'type') arr.sort((a, b) => {
+        const an = itemTypeManager.name(a.typeId) || 'Senza tipo';
+        const bn = itemTypeManager.name(b.typeId) || 'Senza tipo';
+        const c = an.localeCompare(bn, 'it');
+        return c !== 0 ? c : str(a.name).localeCompare(str(b.name), 'it');
+      });
+      return arr;
+    }
+
+    function renderRow(it) {
+      const row = document.createElement('div');
+      row.className = 'routine-row';
+
+      const nameEl = makeInlineText(it.name, it.name, (val) => {
+        if (val !== null) { const t = val.trim(); if (t) { it.name = t; persist(); } }
+        render();
+      }, 'routine-name');
+
+      const typeOptions = [{ value: '', label: 'Senza tipo' }].concat(itemTypeManager.sortedOptions());
+      const typeEl = makeInlineSelect(itemTypeManager.name(it.typeId) || 'Senza tipo', 'item-type',
+        typeOptions, it.typeId || '', (val) => { it.typeId = val || null; save(); }, render);
+      const tc = itemTypeManager.color(it.typeId);
+      if (tc) typeEl.style.setProperty('--item-type-color', tc);
+
+      const costEl = makeInlineText(fmt(it), rawCost(it), (val) => {
+        if (val !== null) {
+          const parsed = parseCostInput(val);
+          if (parsed) { it.costMin = parsed.min; it.costMax = parsed.max; persist(); }
+        }
+        render();
+      }, 'routine-cost editable', 'cost-edit-input');
+
+      row.append(nameEl, typeEl, costEl,
+        iconButton('×', 'routine-del', 'Elimina oggetto', () => deleteWithUndo(items, it.id, it.name, save)));
+      return row;
+    }
+
+    function renderTotal() {
+      const hasRange = items.some(it => it.costMin !== it.costMax);
+      const total = items.reduce((s, it) => s + mid(it), 0);
+      totalEl.textContent = items.length === 0 ? '' : (hasRange ? 'Totale stimato: ' : 'Totale: ') + formatCost(total);
+    }
+
+    function render() {
+      listEl.innerHTML = '';
+      if (items.length === 0) {
+        const empty = document.createElement('p');
+        empty.className = 'empty-col';
+        empty.style.padding = '12px 14px';
+        empty.textContent = 'Nessun oggetto in lista.';
+        listEl.appendChild(empty);
+      } else {
+        sortedItems().forEach(it => listEl.appendChild(renderRow(it)));
+        const rows = Array.from(listEl.querySelectorAll('.routine-row'));
+        if (rows.length > ITEM_COLLAPSE_LIMIT) {
+          toggleBtn.style.display = 'block';
+          if (expanded) {
+            toggleBtn.textContent = 'Mostra meno';
+          } else {
+            rows.slice(ITEM_COLLAPSE_LIMIT).forEach(r => { r.style.display = 'none'; });
+            toggleBtn.textContent = 'Mostra tutti (' + rows.length + ')';
+          }
+        } else {
+          toggleBtn.style.display = 'none';
+        }
+      }
+      renderTotal();
+    }
+
+    function add() {
+      const nameInput = document.getElementById('new-item-name');
+      const costInput = document.getElementById('new-item-cost');
+      const name = nameInput.value.trim();
+      const parsed = parseCostInput(costInput.value);
+      if (!name) { toast('Inserisci un nome per l’oggetto.', { kind: 'warn' }); nameInput.focus(); return; }
+      if (!parsed) { toast('Costo non valido. Usa un numero (es. 45) o un intervallo (es. 120-170).', { kind: 'warn' }); costInput.focus(); return; }
+      items.push({
+        id: uid('item'),
+        name: name,
+        typeId: itemTypeManager.getSelected() || null,
+        costMin: parsed.min,
+        costMax: parsed.max
+      });
+      nameInput.value = '';
+      costInput.value = '';
+      itemTypeManager.resetSelected();
+      save();
+    }
+
+    document.getElementById('add-item-btn').addEventListener('click', add);
+    document.getElementById('new-item-name').addEventListener('keydown', (e) => { if (e.key === 'Enter') add(); });
+    document.getElementById('new-item-cost').addEventListener('keydown', (e) => { if (e.key === 'Enter') add(); });
+    toggleBtn.addEventListener('click', () => { expanded = !expanded; render(); });
+    const sortEl = document.getElementById('item-sort');
+    sortEl.value = sort;
+    sortEl.addEventListener('change', (e) => { sort = e.target.value; DB.setRaw('item-sort', sort); render(); });
+
+    return {
+      render: render,
+      snapshot: () => items,
+      replaceAll: (arr) => { items = normalize(arr); persist(); render(); },
+      mergeIn: (arr) => { mergeById(items, normalize(arr)); persist(); render(); }
+    };
+  })();
+
+  /* ---------- routine + pagamenti ------------------------------------------- */
+  const routineList = createRecurringList({
+    key: 'recurring-tasks',
+    sortKey: 'routine-sort',
+    listElId: 'routine-list',
+    sortElId: 'routine-sort',
+    addBtnId: 'add-routine-btn',
+    nameInputId: 'new-routine-name',
+    freqInputId: 'new-routine-freq',
+    idPrefix: 'r',
+    hasCost: false,
+    freqs: ROUTINE_FREQS,
+    entity: 'routine',
+    emptyText: 'Nessuna routine impostata.'
+  });
+
+  const paymentList = createRecurringList({
+    key: 'recurring-payments',
+    sortKey: 'payment-sort',
+    listElId: 'payment-list',
+    sortElId: 'payment-sort',
+    addBtnId: 'add-payment-btn',
+    nameInputId: 'new-payment-name',
+    freqInputId: 'new-payment-freq',
+    costInputId: 'new-payment-cost',
+    totalElId: 'payment-total',
+    idPrefix: 'pay',
+    hasCost: true,
+    freqs: PAYMENT_FREQS,
+    entity: 'pagamento',
+    emptyText: 'Nessun pagamento impostato.'
+  });
+
+  /* ---------- esporta / importa backup (facoltativo, non tocca l'autosave) -- */
+  // Il salvataggio automatico nel .py resta l'unico meccanismo di persistenza
+  // "vero". Questi due bottoni sono solo un modo extra per fare una copia
+  // manuale o per portare dati da un'altra installazione: usano gli stessi
+  // sanitize*/mergeIn/replaceAll di sempre, quindi entrano nel normale flusso
+  // di salvataggio (DB.set -> api.save -> localStorage).
+  const IMPORT_EXPORT_SECTIONS = ['projects', 'routines', 'payments', 'itemTypes', 'items', 'projectTypes'];
+
+  function collectBackupPayload() {
+    return {
+      projects: projectsModule.snapshot(),
+      routines: routineList.snapshot(),
+      payments: paymentList.snapshot(),
+      itemTypes: itemTypeManager.snapshot(),
+      items: itemsModule.snapshot(),
+      projectTypes: projectTypeManager.snapshot(),
+      exportedAt: new Date().toISOString()
+    };
+  }
+
+  function cleanBackupPayload(data) {
+    return {
+      projects: asArray(data.projects).map(sanitizeProject).filter(Boolean),
+      routines: asArray(data.routines).map(e => sanitizeRecurring(e, false)).filter(Boolean),
+      payments: asArray(data.payments).map(e => sanitizeRecurring(e, true)).filter(Boolean),
+      itemTypes: asArray(data.itemTypes).map(t => sanitizeType(t, 't')).filter(Boolean),
+      items: asArray(data.items).map(sanitizeItem).filter(Boolean),
+      projectTypes: asArray(data.projectTypes).map(t => sanitizeType(t, 'pt')).filter(Boolean)
+    };
+  }
+
+  function applyBackupPayload(clean, op) {
+    projectsModule[op](clean.projects);
+    routineList[op](clean.routines);
+    paymentList[op](clean.payments);
+    itemTypeManager[op](clean.itemTypes);
+    itemsModule[op](clean.items);
+    projectTypeManager[op](clean.projectTypes);
+  }
+
+  const exportBtn = document.getElementById('export-btn');
+  if (exportBtn) {
+    exportBtn.addEventListener('click', () => {
+      api.export_data(collectBackupPayload()).then((res) => {
+        if (res && res.ok) toast('Backup esportato: ' + res.path);
+        else if (res && !res.cancelled) toast('Esportazione non riuscita: ' + (res.error || ''), { kind: 'error' });
+      });
+    });
+  }
+
+  const importBtn = document.getElementById('import-btn');
+  if (importBtn) {
+    importBtn.addEventListener('click', () => {
+      api.import_data().then((res) => {
+        if (!res || res.cancelled) return;
+        if (!res.ok) { toast('Importazione non riuscita: ' + (res.error || 'file non valido'), { kind: 'error' }); return; }
+        const raw = res.data;
+        if (!raw || typeof raw !== 'object') { toast('File non valido.', { kind: 'error' }); return; }
+
+        const clean = cleanBackupPayload(raw);
+        const total = IMPORT_EXPORT_SECTIONS.reduce((s, k) => s + clean[k].length, 0);
+        const skipped = IMPORT_EXPORT_SECTIONS.reduce((s, k) => s + (asArray(raw[k]).length - clean[k].length), 0);
+        if (total === 0) { toast('Nessun dato valido trovato nel file.', { kind: 'error' }); return; }
+
+        const merge = confirm(
+          'Importare ' + total + ' voci' + (skipped > 0 ? ' (' + skipped + ' non valide verranno ignorate)' : '') + '.\n\n'
+          + 'OK = UNISCI ai dati attuali (aggiunge solo le voci nuove)\n'
+          + 'Annulla = SOSTITUISCI tutti i dati attuali'
+        );
+
+        const prev = collectBackupPayload();
+        applyBackupPayload(clean, merge ? 'mergeIn' : 'replaceAll');
+
+        toast('Importate ' + total + ' voci (' + (merge ? 'unione' : 'sostituzione') + ').'
+          + (skipped > 0 ? ' ' + skipped + ' non valide ignorate.' : ''),
+          {
+            kind: skipped > 0 ? 'warn' : 'info',
+            timeout: 12000,
+            actionLabel: 'Annulla import',
+            onAction: () => {
+              applyBackupPayload(prev, 'replaceAll');
+              toast('Import annullato: ripristinati i dati precedenti.');
+            }
+          });
+      });
+    });
+  }
+
+  /* ---------- render iniziale ------------------------------------------------ */
+  projectTypeManager.render();
+  itemTypeManager.render();
+  projectsModule.render();
+  routineList.render();
+  paymentList.render();
+  itemsModule.render();
+
+  /* ---------- auto-reset di routine/pagamenti al cambio di periodo ---------- */
+  function snapshotPeriods() {
+    const now = new Date();
+    const o = {};
+    ROUTINE_FREQS.forEach(f => { o[f] = periodKey(f, now); });
+    return o;
+  }
+  let periodSnapshot = snapshotPeriods();
+  setInterval(() => {
+    const next = snapshotPeriods();
+    const changed = ROUTINE_FREQS.some(f => next[f] !== periodSnapshot[f]);
+    if (changed) {
+      periodSnapshot = next;
+      routineList.render();
+      paymentList.render();
+    }
+  }, 60000);
+}
+
+/* =========================================================================
+   Self-test delle funzioni pure. Attivo solo con ?selftest nell'URL.
+   Non dipende dai dati caricati: gira subito, indipendentemente da boot().
+   ========================================================================= */
+if (typeof location !== 'undefined' && /[?&]selftest\b/.test(location.search)) {
+  (function runSelfTests() {
+    let pass = 0, fail = 0;
+    const eq = (name, got, want) => {
+      const ok = JSON.stringify(got) === JSON.stringify(want);
+      if (ok) { pass++; console.log('%c✓ ' + name, 'color:#4fb8a0'); }
+      else { fail++; console.error('✗ ' + name, '\n  atteso:', want, '\n  ottenuto:', got); }
+    };
+
+    eq('parseCostInput numero', parseCostInput('45'), { min: 45, max: 45 });
+    eq('parseCostInput virgola', parseCostInput('12,5'), { min: 12.5, max: 12.5 });
+    eq('parseCostInput intervallo', parseCostInput('120-170'), { min: 120, max: 170 });
+    eq('parseCostInput intervallo invertito', parseCostInput('170-120'), { min: 120, max: 170 });
+    eq('parseCostInput vuoto', parseCostInput('  '), null);
+    eq('parseCostInput non numerico', parseCostInput('abc'), null);
+
+    eq('periodKey daily', periodKey('daily', new Date(2026, 0, 5)), '2026-01-05');
+    eq('periodKey monthly', periodKey('monthly', new Date(2026, 0, 5)), '2026-01');
+    eq('periodKey yearly', periodKey('yearly', new Date(2026, 0, 5)), '2026');
+    eq('isoWeekKey', isoWeekKey(new Date(2026, 0, 5)), '2026-W02');
+
+    eq('sanitizeProject scarta senza nome', sanitizeProject({ name: '   ' }), null);
+    eq('sanitizeProject default status/priority',
+      (p => ({ status: p.status, priority: p.priority }))(sanitizeProject({ name: 'X', status: 'boh', priority: 'boh' })),
+      { status: 'futuro', priority: 'media' });
+    eq('sanitizeRecurring costo negativo → 0', sanitizeRecurring({ name: 'X', cost: -5 }, true).cost, 0);
+    eq('sanitizeItem min>max si scambia',
+      (it => ({ min: it.costMin, max: it.costMax }))(sanitizeItem({ name: 'X', costMin: 9, costMax: 3 })),
+      { min: 3, max: 9 });
+
+    const uids = new Set();
+    for (let i = 0; i < 5000; i++) uids.add(uid('t'));
+    eq('uid unico su 5000 iterazioni', uids.size, 5000);
+
+    console.log('%cSelf-test: ' + pass + ' passati, ' + fail + ' falliti',
+      'font-weight:bold;color:' + (fail ? '#d9695a' : '#4fb8a0'));
+  })();
+}
+
+/* ---------- ponte dati per il browser (localStorage + download/upload file) -- */
+const STORAGE_KEY = 'life-tracker-data';
+
+function readStore() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return (parsed && typeof parsed === 'object') ? parsed : {};
+  } catch (e) {
+    console.error('Lettura dati non riuscita:', e);
+    return {};
+  }
+}
+
+const api = {
+  load_all: function () {
+    return Promise.resolve(readStore());
+  },
+  save: function (key, value) {
+    try {
+      const data = readStore();
+      data[key] = value;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      return Promise.resolve(true);
+    } catch (e) {
+      return Promise.reject(e);
+    }
+  },
+  export_data: function (payload) {
+    const name = 'life-tracker-backup-' + new Date().toISOString().slice(0, 10) + '.json';
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+    return Promise.resolve({ ok: true, path: name });
+  },
+  import_data: function () {
+    return new Promise(function (resolve) {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'application/json,.json';
+      input.addEventListener('change', function () {
+        const file = input.files && input.files[0];
+        if (!file) { resolve({ ok: false, cancelled: true }); return; }
+        const reader = new FileReader();
+        reader.onload = function () {
+          try {
+            resolve({ ok: true, data: JSON.parse(reader.result) });
+          } catch (e) {
+            resolve({ ok: false, error: 'JSON non valido' });
+          }
+        };
+        reader.onerror = function () { resolve({ ok: false, error: 'lettura file fallita' }); };
+        reader.readAsText(file, 'utf-8');
+      });
+      input.addEventListener('cancel', function () { resolve({ ok: false, cancelled: true }); });
+      input.click();
+    });
+  }
+};
+
+/* ---------- avvio ---------- */
+api.load_all().then(function (data) {
+  boot(data, api);
+});
+</script>
+</body>
+</html>
